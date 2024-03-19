@@ -26,8 +26,10 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringReader;
@@ -45,11 +47,16 @@ public class XMLDumper implements IDumper {
   private CollectionManager collectionManager;
 
   public XMLDumper(String filePath, CollectionManager collectionManager)
-      throws FileNotFoundException, AccessDeniedException {
+      throws AccessDeniedException {
     this.collectionManager = collectionManager;
     file = Paths.get(filePath).toFile();
     if (!file.exists()) {
-      throw new FileNotFoundException("file %s not found".formatted(filePath));
+      try {
+        this.createDbFile(filePath);
+        collectionManager.saveToFile(filePath);
+        System.out.println("created new db in " + filePath);
+      } catch (IOException e) {
+      }
     }
     if (!file.canRead()) {
       throw new AccessDeniedException("file %s is not readable".formatted(filePath));
@@ -57,6 +64,13 @@ public class XMLDumper implements IDumper {
     if (!file.canWrite()) {
       throw new AccessDeniedException("file %s is not writable".formatted(filePath));
     }
+  }
+
+  private File createDbFile(String filePath) throws IOException {
+    File file = new File(filePath);
+    BufferedWriter writer = new BufferedWriter(new FileWriter(file));
+    writer.close();
+    return file;
   }
 
   private static void addTextNode(Document doc, Element rootElement, String tag, String content) {
@@ -136,8 +150,14 @@ public class XMLDumper implements IDumper {
   }
 
   public void dump()
-      throws FileNotFoundException, SerializationException {
-    printWriter = new PrintWriter(file);
+      throws IOException, SerializationException {
+    try {
+      printWriter = new PrintWriter(file);
+    } catch (FileNotFoundException e) {
+      System.out.println("file %s not found, creating".formatted(file.getAbsolutePath()));
+
+      this.file = createDbFile(file.getAbsolutePath());
+    }
     String xml = toXML(collectionManager.getList(), collectionManager.getType(), collectionManager.getCreatedAt(),
         collectionManager.getUpdatedAt());
     printWriter.println(xml);

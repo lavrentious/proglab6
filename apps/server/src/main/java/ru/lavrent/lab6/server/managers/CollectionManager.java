@@ -7,6 +7,7 @@ import ru.lavrent.lab6.server.exceptions.SerializationException;
 import ru.lavrent.lab6.server.utils.XMLDumper;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -73,7 +74,7 @@ public class CollectionManager {
     updatedAt = LocalDateTime.now();
   }
 
-  public void saveToFile(String filePath) throws FileNotFoundException, AccessDeniedException, SerializationException {
+  public void saveToFile(String filePath) throws IOException, AccessDeniedException, SerializationException {
     XMLDumper xmlDumper = new XMLDumper(filePath, this);
     xmlDumper.dump();
     hasUnsavedChanges = false;
