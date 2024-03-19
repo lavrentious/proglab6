@@ -1,15 +1,12 @@
 package ru.lavrent.lab6.server.managers;
 
-import org.xml.sax.SAXException;
 import ru.lavrent.lab6.common.models.DryLabWork;
 import ru.lavrent.lab6.common.models.LabWork;
+import ru.lavrent.lab6.server.exceptions.DeserializationException;
 import ru.lavrent.lab6.server.exceptions.SerializationException;
 import ru.lavrent.lab6.server.utils.XMLDumper;
 
-import javax.xml.parsers.ParserConfigurationException;
-
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -82,7 +79,8 @@ public class CollectionManager {
     hasUnsavedChanges = false;
   }
 
-  public void loadFromFile(String filePath) throws ParserConfigurationException, SAXException, IOException, Exception {
+  public void loadFromFile(String filePath)
+      throws FileNotFoundException, AccessDeniedException, DeserializationException {
     XMLDumper xmlDumper = new XMLDumper(filePath, this);
     clear();
     xmlDumper.load();

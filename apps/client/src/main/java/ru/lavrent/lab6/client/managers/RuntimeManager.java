@@ -9,8 +9,10 @@ import ru.lavrent.lab6.client.commands.Help;
 import ru.lavrent.lab6.client.commands.History;
 import ru.lavrent.lab6.client.commands.Info;
 import ru.lavrent.lab6.client.commands.Show;
+import ru.lavrent.lab6.client.utils.ClientEnvConfig;
 import ru.lavrent.lab6.client.utils.Reader;
 import ru.lavrent.lab6.client.utils.TCPClient;
+import ru.lavrent.lab6.common.exceptions.InvalidConfigException;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
@@ -19,13 +21,26 @@ import java.net.UnknownHostException;
  * RuntimeManager
  */
 public class RuntimeManager {
-  CommandManager commandManager;
-  Reader reader;
+  private CommandManager commandManager;
+  private Reader reader;
+  private TCPClient tcpClient;
+  private ClientEnvConfig config;
 
   public RuntimeManager(TCPClient tcpClient, String filePath) throws UnknownHostException, IOException {
     this.commandManager = new CommandManager();
+    this.tcpClient = tcpClient;
     this.reader = new Reader(commandManager, filePath, null);
-    getReader().setOnHalt(tcpClient::disconnect);
+    try {
+      this.config = ClientEnvConfig.getInstance();
+      System.out.println("port=%d".formatted(config.getPort()));
+      getReader().setOnHalt(tcpClient::disconnect);
+      loadCommands();
+    } catch (InvalidConfigException e) {
+      System.out.println("invalid config: " + e.getMessage());
+    }
+  }
+
+  private void loadCommands() {
     Command[] commands = new Command[] {
         new Info(tcpClient),
         new Show(tcpClient),

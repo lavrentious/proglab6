@@ -1,0 +1,45 @@
+package ru.lavrent.lab6.server.utils;
+
+import ru.lavrent.lab6.common.exceptions.InvalidConfigException;
+import ru.lavrent.lab6.common.interfaces.IConfig;
+
+public class ServerEnvConfig implements IConfig {
+  private static ServerEnvConfig instance;
+  private String dbPath;
+  private int port = 5555;
+
+  private ServerEnvConfig() throws InvalidConfigException {
+    onLoad();
+    validate();
+  }
+
+  public static ServerEnvConfig getInstance() throws InvalidConfigException {
+    if (instance == null) {
+      instance = new ServerEnvConfig();
+    }
+    return instance;
+  }
+
+  @Override
+  public void onLoad() {
+    dbPath = System.getenv("dbPath");
+    String port = System.getenv("port");
+    if (port != null)
+      this.port = Integer.parseInt(port);
+  }
+
+  @Override
+  public void validate() throws InvalidConfigException {
+    if (port <= 0 || port >= 65536) {
+      throw new InvalidConfigException("'port' must be > 0 and < 65536");
+    }
+  }
+
+  public String getDbPath() {
+    return dbPath;
+  }
+
+  public int getPort() {
+    return port;
+  }
+}
