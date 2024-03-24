@@ -1,22 +1,25 @@
 package ru.lavrent.lab6.client.utils;
 
 import org.apache.commons.lang3.SerializationUtils;
-import ru.lavrent.lab6.client.exceptions.TCPClientException;
 import ru.lavrent.lab6.common.network.requests.Request;
 import ru.lavrent.lab6.common.network.responses.ErrorResponse;
 import ru.lavrent.lab6.common.network.responses.OkResponse;
 import ru.lavrent.lab6.common.network.responses.Response;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 
 public class TCPClient {
+  private final int RESPONSE_BUFFER_SIZE = 16;
+
   private Socket socket;
-  private ObjectInputStream in;
-  private ObjectOutputStream out;
+  private OutputStream out;
+  private InputStream in;
 
   public TCPClient(String host, int port) throws UnknownHostException, IOException {
     try {
@@ -24,15 +27,15 @@ public class TCPClient {
       Class.forName(ErrorResponse.class.getName()); // load class
     } catch (ClassNotFoundException e) {
     }
-    this.socket = connect(host, port);
+    connect(host, port);
     System.out.println("connected to " + socket.toString());
   }
 
-  private Socket connect(String host, int port) throws IOException, UnknownHostException {
-    Socket socket = new Socket(host, port);
-    this.out = new ObjectOutputStream(socket.getOutputStream());
-    this.in = new ObjectInputStream(socket.getInputStream());
-    return socket;
+  private void connect(String host, int port) throws IOException, UnknownHostException {
+    this.socket = new Socket(host, port);
+    System.out.println("connected to " + socket.toString());
+    this.out = socket.getOutputStream();
+    this.in = socket.getInputStream();
   }
 
   public Socket getSocket() {
@@ -50,12 +53,40 @@ public class TCPClient {
   }
 
   public Response send(Request request) throws IOException {
-    byte[] msg = SerializationUtils.serialize(request);
-    out.writeObject(msg);
-    try {
-      return (Response) SerializationUtils.deserialize((byte[]) in.readObject());
-    } catch (ClassNotFoundException e) {
-      throw new TCPClientException(e);
+    byte[] bytes = SerializationUtils.serialize(request);
+    writeInt(bytes.length);
+    out.write(bytes);
+    out.flush();
+
+    // read response size
+    int responseSize = readInt();
+    System.out.println("\n[incoming %d byte response]".formatted(responseSize));
+    byte[] responseBytes = this.readResponse(responseSize);
+
+    return SerializationUtils.deserialize(responseBytes);
+  }
+
+  private void writeInt(int x) throws IOException {
+    ByteBuffer responseSizeBuffer = ByteBuffer.allocate(Integer.BYTES);
+    responseSizeBuffer.putInt(x);
+    responseSizeBuffer.flip();
+    this.out.write(responseSizeBuffer.array());
+  }
+
+  private int readInt() throws IOException {
+    byte[] responseSizeBytes = new byte[Integer.BYTES];
+    in.read(responseSizeBytes);
+    return ByteBuffer.wrap(responseSizeBytes).getInt();
+  }
+
+  private byte[] readResponse(int responseSize) throws IOException {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    byte[] chunk = new byte[this.RESPONSE_BUFFER_SIZE];
+    int totalRead = 0;
+    while (totalRead < responseSize) {
+      totalRead += in.read(chunk);
+      baos.write(chunk);
     }
+    return baos.toByteArray();
   }
 }
