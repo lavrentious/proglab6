@@ -53,6 +53,9 @@ public class TCPServer {
     while (true) {
       // deserialize and handle request
       int requestSize = this.readInt();
+      if (requestSize == -1) {
+        break;
+      }
       byte[] requestBytes = this.readResponse(requestSize);
       Request request = SerializationUtils.deserialize(requestBytes);
       System.out.println(
@@ -77,7 +80,10 @@ public class TCPServer {
 
   private int readInt() throws IOException {
     ByteBuffer data = ByteBuffer.allocate(Integer.BYTES);
-    client.read(data);
+    int size = client.read(data);
+    if (size == -1) {
+      return -1;
+    }
     return data.flip().getInt();
   }
 
