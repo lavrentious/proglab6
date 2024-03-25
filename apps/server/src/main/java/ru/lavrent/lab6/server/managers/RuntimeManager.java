@@ -5,6 +5,7 @@ import ru.lavrent.lab6.server.TCPServer;
 import ru.lavrent.lab6.server.commands.Add;
 import ru.lavrent.lab6.server.commands.Clear;
 import ru.lavrent.lab6.server.commands.Command;
+import ru.lavrent.lab6.server.commands.CountLessThanDifficulty;
 import ru.lavrent.lab6.server.commands.Info;
 import ru.lavrent.lab6.server.commands.Show;
 import ru.lavrent.lab6.server.exceptions.DeserializationException;
@@ -50,6 +51,7 @@ public class RuntimeManager {
         new Clear(this.collectionManager),
         new Show(this.collectionManager),
         new Info(this.collectionManager),
+        new CountLessThanDifficulty(this.collectionManager),
     };
     for (Command cmd : commands) {
       this.requestManager.addCommand(cmd);

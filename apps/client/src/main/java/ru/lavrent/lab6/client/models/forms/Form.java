@@ -135,12 +135,20 @@ public abstract class Form<T> {
         System.out.println(option.ordinal() + ". " + option.name());
       }
       String choice = getString("enter name: ", scanner, null);
-      for (T option : enumClass.getEnumConstants()) {
-        if (choice.equalsIgnoreCase(option.name())) {
-          return option;
-        }
+      T ans = Form.getEnumValueByString(enumClass, choice);
+      if (ans != null) {
+        return ans;
       }
       System.err.println("invalid enum key. retry.");
     } while (true);
+  }
+
+  public static <T extends Enum<T>> T getEnumValueByString(Class<T> enumClass, String name) {
+    for (T option : enumClass.getEnumConstants()) {
+      if (name.equalsIgnoreCase(option.name())) {
+        return option;
+      }
+    }
+    return null;
   }
 }

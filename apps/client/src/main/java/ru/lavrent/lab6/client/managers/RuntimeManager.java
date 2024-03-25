@@ -3,6 +3,7 @@ package ru.lavrent.lab6.client.managers;
 import ru.lavrent.lab6.client.commands.Add;
 import ru.lavrent.lab6.client.commands.Clear;
 import ru.lavrent.lab6.client.commands.Command;
+import ru.lavrent.lab6.client.commands.CountLessThanDifficulty;
 import ru.lavrent.lab6.client.commands.ExecuteScript;
 import ru.lavrent.lab6.client.commands.Exit;
 import ru.lavrent.lab6.client.commands.Help;
@@ -50,6 +51,7 @@ public class RuntimeManager {
         new History(commandManager),
         new Exit(reader),
         new Add(reader, tcpClient),
+        new CountLessThanDifficulty(tcpClient),
     };
     for (Command cmd : commands) {
       commandManager.addCommand(cmd);

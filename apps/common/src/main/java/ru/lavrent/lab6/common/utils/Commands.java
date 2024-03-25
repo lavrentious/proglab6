@@ -9,4 +9,5 @@ public interface Commands {
   String EXIT = "exit";
   String CLEAR = "clear";
   String EXECUTE_SCRIPT = "execute_script";
+  String COUNT_LESS_THAN_DIFFICULTY = "cld";
 }
