@@ -11,83 +11,100 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.time.LocalTime;
+import java.util.Iterator;
+import java.util.Set;
 
 public class TCPServer {
-  private final int RESPONSE_BUFFER_SIZE = 16;
-
-  private ServerSocketChannel serverSocketChannel;
-  private SocketChannel client;
-  private RequestManager requestManager;
-  private final ByteBuffer buffer;
+  private static final int RESPONSE_BUFFER_SIZE = 1024;
+  private final RequestManager requestManager;
+  private final Selector selector;
 
   public TCPServer(int port, RequestManager requestManager) throws IOException {
-    this.serverSocketChannel = ServerSocketChannel.open();
-    this.serverSocketChannel.bind(new InetSocketAddress(port));
     this.requestManager = requestManager;
-    this.buffer = ByteBuffer.allocate(RESPONSE_BUFFER_SIZE);
-  }
-
-  private SocketChannel waitForConnection() throws IOException {
-    SocketChannel client = this.serverSocketChannel.accept();
-    System.out.println("Client connected: " + client.toString());
-    return client;
-  }
-
-  private void disconnect() {
-    try {
-      this.client.close();
-      System.out.println("client %s disconnected".formatted(client.toString()));
-    } catch (IOException e) {
-    }
+    ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+    serverSocketChannel.bind(new InetSocketAddress(port));
+    serverSocketChannel.configureBlocking(false);
+    selector = Selector.open();
+    serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
   }
 
   public void listen() throws IOException {
     while (true) {
-      System.out.println("awaiting connection...");
-      this.client = waitForConnection();
-      handleClient(client);
-      this.disconnect();
-    }
-  }
+      selector.select();
+      System.out.println("selected " + LocalTime.now().toString());
+      Set<SelectionKey> selectedKeys = selector.selectedKeys();
+      Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
 
-  private void handleClient(SocketChannel client) throws IOException {
-    while (true) {
-      // deserialize and handle request
-      int requestSize = this.readInt();
-      if (requestSize == -1) {
-        break;
-      }
-      byte[] requestBytes = this.readResponse(requestSize);
-      Request request = SerializationUtils.deserialize(requestBytes);
-      System.out.println(
-          "Received %s from %s (%d bytes)".formatted(request.getName(), client.getRemoteAddress(), requestSize));
+      while (keyIterator.hasNext()) {
+        SelectionKey key = keyIterator.next();
 
-      // send response
-      try {
-        Response response = this.requestManager.handleRequest(request);
-        this.sendResponse(response);
-      } catch (BadRequest e) {
-        this.sendResponse(new ErrorResponse(e.getMessage()));
+        if (key.isAcceptable()) {
+          handleConnect(key);
+        } else if (key.isReadable()) {
+          handleReadable(key);
+        }
+        keyIterator.remove();
       }
     }
   }
 
-  private void sendResponse(Response response) throws IOException {
-    byte[] responseBytes = SerializationUtils.serialize(response);
-    this.writeInt(responseBytes.length);
-    this.client.write(ByteBuffer.wrap(responseBytes));
+  private void disconnect(SocketChannel client) {
+    try {
+      System.out.println("%s disconnected".formatted(client.getRemoteAddress()));
+      client.close();
+    } catch (IOException e) {
+    }
   }
 
-  private void writeInt(int x) throws IOException {
+  private void handleConnect(SelectionKey key) throws IOException {
+    ServerSocketChannel serverSocketChannel = (ServerSocketChannel) key.channel();
+    SocketChannel client = serverSocketChannel.accept();
+    client.configureBlocking(false);
+    client.register(selector, SelectionKey.OP_READ);
+    System.out.println("%s connected".formatted(client.getRemoteAddress()));
+  }
+
+  private void handleReadable(SelectionKey key) throws IOException {
+    SocketChannel client = (SocketChannel) key.channel();
+    int requestSize = this.readInt(client);
+    if (requestSize == -1) {
+      disconnect(client);
+      return;
+    }
+    byte[] requestBytes = this.readRequest(client, requestSize);
+    Request request = SerializationUtils.deserialize(requestBytes);
+    System.out.println(
+        "received %s from %s (%d bytes)".formatted(request.getName(), client.getRemoteAddress(), requestSize));
+
+    try {
+      Response response = requestManager.handleRequest(request);
+      sendResponse(client, response);
+    } catch (BadRequest e) {
+      sendResponse(client, new ErrorResponse(e.getMessage()));
+    } catch (IOException e) {
+      disconnect(client);
+    }
+  }
+
+  private void writeInt(SocketChannel client, int x) throws IOException {
     ByteBuffer responseSizeBuffer = ByteBuffer.allocate(Integer.BYTES);
     responseSizeBuffer.putInt(x);
     responseSizeBuffer.flip();
-    this.client.write(responseSizeBuffer);
+    client.write(responseSizeBuffer);
   }
 
-  private int readInt() throws IOException {
+  private void sendResponse(SocketChannel client, Response response) throws IOException {
+    byte[] responseBytes = SerializationUtils.serialize(response);
+    this.writeInt(client, responseBytes.length);
+    client.write(ByteBuffer.wrap(responseBytes));
+  }
+
+  private int readInt(SocketChannel client) throws IOException {
     ByteBuffer data = ByteBuffer.allocate(Integer.BYTES);
     int size = client.read(data);
     if (size == -1) {
@@ -96,8 +113,10 @@ public class TCPServer {
     return data.flip().getInt();
   }
 
-  private byte[] readResponse(int responseSize) throws IOException {
+  private byte[] readRequest(SocketChannel client, int responseSize) throws IOException {
+    ByteBuffer buffer = ByteBuffer.allocate(RESPONSE_BUFFER_SIZE);
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    System.out.println("reading request from %s (%d bytes)".formatted(client, responseSize));
     int totalRead = 0;
     while (totalRead < responseSize) {
       totalRead += client.read(buffer);
