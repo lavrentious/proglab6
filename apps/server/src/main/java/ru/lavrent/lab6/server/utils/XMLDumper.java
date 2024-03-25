@@ -166,7 +166,7 @@ public class XMLDumper implements IDumper {
 
   public void load() throws FileNotFoundException, DeserializationException {
     Scanner scanner = new Scanner(file);
-    long lastId = 0;
+    long lastId = 1;
     try {
       StringBuilder content = new StringBuilder();
       while (scanner.hasNextLine()) {
