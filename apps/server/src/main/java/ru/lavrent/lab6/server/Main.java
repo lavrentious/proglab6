@@ -10,7 +10,7 @@ public class Main {
       RuntimeManager runtimeManager = new RuntimeManager();
       runtimeManager.run();
     } catch (IOException e) {
-      System.out.println("io exception in main: " + e.getMessage());
+      RuntimeManager.logger.severe("io exception in main: " + e.getMessage());
     }
   }
 }

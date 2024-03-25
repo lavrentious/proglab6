@@ -6,6 +6,7 @@ import ru.lavrent.lab6.common.network.responses.ErrorResponse;
 import ru.lavrent.lab6.common.network.responses.Response;
 import ru.lavrent.lab6.server.exceptions.BadRequest;
 import ru.lavrent.lab6.server.managers.RequestManager;
+import ru.lavrent.lab6.server.managers.RuntimeManager;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -15,7 +16,6 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.time.LocalTime;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -36,7 +36,6 @@ public class TCPServer {
   public void listen() throws IOException {
     while (true) {
       selector.select();
-      System.out.println("selected " + LocalTime.now().toString());
       Set<SelectionKey> selectedKeys = selector.selectedKeys();
       Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
 
@@ -55,7 +54,7 @@ public class TCPServer {
 
   private void disconnect(SocketChannel client) {
     try {
-      System.out.println("%s disconnected".formatted(client.getRemoteAddress()));
+      RuntimeManager.logger.info("%s disconnected".formatted(client.getRemoteAddress()));
       client.close();
     } catch (IOException e) {
     }
@@ -66,7 +65,7 @@ public class TCPServer {
     SocketChannel client = serverSocketChannel.accept();
     client.configureBlocking(false);
     client.register(selector, SelectionKey.OP_READ);
-    System.out.println("%s connected".formatted(client.getRemoteAddress()));
+    RuntimeManager.logger.info("%s connected".formatted(client.getRemoteAddress()));
   }
 
   private void handleReadable(SelectionKey key) throws IOException {
@@ -78,7 +77,7 @@ public class TCPServer {
     }
     byte[] requestBytes = this.readRequest(client, requestSize);
     Request request = SerializationUtils.deserialize(requestBytes);
-    System.out.println(
+    RuntimeManager.logger.info(
         "received %s from %s (%d bytes)".formatted(request.getName(), client.getRemoteAddress(), requestSize));
 
     try {
@@ -116,7 +115,6 @@ public class TCPServer {
   private byte[] readRequest(SocketChannel client, int responseSize) throws IOException {
     ByteBuffer buffer = ByteBuffer.allocate(RESPONSE_BUFFER_SIZE);
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    System.out.println("reading request from %s (%d bytes)".formatted(client, responseSize));
     int totalRead = 0;
     while (totalRead < responseSize) {
       totalRead += client.read(buffer);

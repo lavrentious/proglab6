@@ -7,6 +7,7 @@ public class ServerEnvConfig implements IConfig {
   private static ServerEnvConfig instance;
   private String dbPath;
   private int port = 5555;
+  private String logPath;
 
   private ServerEnvConfig() throws InvalidConfigException {
     onLoad();
@@ -22,6 +23,7 @@ public class ServerEnvConfig implements IConfig {
 
   @Override
   public void onLoad() {
+    logPath = System.getenv("logPath");
     dbPath = System.getenv("dbPath");
     String port = System.getenv("port");
     if (port != null)
@@ -41,5 +43,9 @@ public class ServerEnvConfig implements IConfig {
 
   public int getPort() {
     return port;
+  }
+
+  public String getLogPath() {
+    return logPath;
   }
 }

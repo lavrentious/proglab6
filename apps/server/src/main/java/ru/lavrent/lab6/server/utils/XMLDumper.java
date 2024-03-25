@@ -15,6 +15,7 @@ import ru.lavrent.lab6.server.exceptions.DeserializationException;
 import ru.lavrent.lab6.server.exceptions.SerializationException;
 import ru.lavrent.lab6.server.interfaces.IDumper;
 import ru.lavrent.lab6.server.managers.CollectionManager;
+import ru.lavrent.lab6.server.managers.RuntimeManager;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -54,7 +55,7 @@ public class XMLDumper implements IDumper {
       try {
         this.createDbFile(filePath);
         collectionManager.saveToFile(filePath);
-        System.out.println("created new db in " + filePath);
+        RuntimeManager.logger.config("created new db in " + filePath);
       } catch (IOException e) {
       }
     }
@@ -154,7 +155,7 @@ public class XMLDumper implements IDumper {
     try {
       printWriter = new PrintWriter(file);
     } catch (FileNotFoundException e) {
-      System.out.println("file %s not found, creating".formatted(file.getAbsolutePath()));
+      RuntimeManager.logger.config("file %s not found, creating".formatted(file.getAbsolutePath()));
 
       this.file = createDbFile(file.getAbsolutePath());
     }
