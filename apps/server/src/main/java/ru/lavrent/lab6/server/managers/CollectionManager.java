@@ -75,6 +75,9 @@ public class CollectionManager {
   }
 
   public void saveToFile(String filePath) throws IOException, AccessDeniedException, SerializationException {
+    if (filePath == null) {
+      return;
+    }
     XMLDumper xmlDumper = new XMLDumper(filePath, this);
     xmlDumper.dump();
     hasUnsavedChanges = false;

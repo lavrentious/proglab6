@@ -32,6 +32,13 @@ public class RuntimeManager {
       this.tcpServer = new TCPServer(config.getPort(), requestManager);
       loadCommands();
       loadDb();
+      Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        try {
+          System.out.println("process ended, saving db to " + config.getDbPath());
+          collectionManager.saveToFile(config.getDbPath());
+        } catch (IOException e) {
+        }
+      }));
     } catch (InvalidConfigException e) {
       System.out.println("invalid config: " + e.getMessage());
     }
