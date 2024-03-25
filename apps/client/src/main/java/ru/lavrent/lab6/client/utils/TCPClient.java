@@ -21,6 +21,10 @@ public class TCPClient {
   private Socket socket;
   private OutputStream out;
   private InputStream in;
+  private String host;
+  private int port;
+  final private int MAX_RETRIES = 5;
+  private int retries;
 
   public TCPClient(String host, int port) throws UnknownHostException, IOException {
     try {
@@ -28,15 +32,26 @@ public class TCPClient {
       Class.forName(ErrorResponse.class.getName()); // load class
     } catch (ClassNotFoundException e) {
     }
-    connect(host, port);
+    this.host = host;
+    this.port = port;
+    connect();
     System.out.println("connected to " + socket.toString());
   }
 
-  private void connect(String host, int port) throws IOException, UnknownHostException {
-    this.socket = new Socket(host, port);
+  private void connect() throws IOException, UnknownHostException {
+    try {
+      this.socket = new Socket(host, port);
+    } catch (IOException e) {
+      this.retries++;
+      if (retries > MAX_RETRIES)
+        throw new IOException(e);
+      System.out.println("trying to reconnect (%d/%d)...".formatted(retries, MAX_RETRIES));
+      connect();
+    }
     System.out.println("connected to " + socket.toString());
     this.out = socket.getOutputStream();
     this.in = socket.getInputStream();
+    this.retries = 0;
   }
 
   public Socket getSocket() {
@@ -54,22 +69,30 @@ public class TCPClient {
   }
 
   public Response send(Request request) throws IOException {
-    byte[] bytes = SerializationUtils.serialize(request);
-    writeInt(bytes.length);
-    out.write(bytes);
-    out.flush();
+    try {
+      byte[] bytes = SerializationUtils.serialize(request);
+      writeInt(bytes.length);
+      out.write(bytes);
+      out.flush();
 
-    // read response size
-    int responseSize = readInt();
-    System.out.println("\n[incoming %d byte response]".formatted(responseSize));
-    byte[] responseBytes = this.readResponse(responseSize);
+      // read response size
+      int responseSize = readInt();
+      System.out.println("\n[incoming %d byte response]".formatted(responseSize));
+      byte[] responseBytes = this.readResponse(responseSize);
 
-    Response response = SerializationUtils.deserialize(responseBytes);
-    if (response instanceof ErrorResponse) {
-      ErrorResponse r = (ErrorResponse) response;
-      throw new RequestFailedException(r.message);
+      Response response = SerializationUtils.deserialize(responseBytes);
+      if (response instanceof ErrorResponse) {
+        ErrorResponse r = (ErrorResponse) response;
+        throw new RequestFailedException(r.message);
+      }
+      return response;
+    } catch (IOException e) {
+      System.out.println("err while sending request " + e.getMessage());
+      System.out.println("trying to reconnect...");
+      this.retries = 0;
+      connect();
+      return send(request);
     }
-    return response;
   }
 
   private void writeInt(int x) throws IOException {
