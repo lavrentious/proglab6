@@ -20,11 +20,13 @@ public class TCPServer {
   private ServerSocketChannel serverSocketChannel;
   private SocketChannel client;
   private RequestManager requestManager;
+  private final ByteBuffer buffer;
 
   public TCPServer(int port, RequestManager requestManager) throws IOException {
     this.serverSocketChannel = ServerSocketChannel.open();
     this.serverSocketChannel.bind(new InetSocketAddress(port));
     this.requestManager = requestManager;
+    this.buffer = ByteBuffer.allocate(RESPONSE_BUFFER_SIZE);
   }
 
   private SocketChannel waitForConnection() throws IOException {
@@ -51,7 +53,6 @@ public class TCPServer {
   }
 
   private void handleClient(SocketChannel client) throws IOException {
-    ByteBuffer buffer = ByteBuffer.allocate(RESPONSE_BUFFER_SIZE);
     while (true) {
       // deserialize and handle request
       int requestSize = this.readInt();
@@ -97,13 +98,13 @@ public class TCPServer {
 
   private byte[] readResponse(int responseSize) throws IOException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    ByteBuffer chunk = ByteBuffer.allocate(this.RESPONSE_BUFFER_SIZE);
     int totalRead = 0;
     while (totalRead < responseSize) {
-      totalRead += client.read(chunk);
-      chunk.flip();
-      baos.write(chunk.array());
+      totalRead += client.read(buffer);
+      buffer.flip();
+      baos.write(buffer.array());
     }
+    buffer.clear();
     return baos.toByteArray();
   }
 }
