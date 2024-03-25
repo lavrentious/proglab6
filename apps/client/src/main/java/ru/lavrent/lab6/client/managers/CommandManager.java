@@ -1,6 +1,7 @@
 package ru.lavrent.lab6.client.managers;
 
 import ru.lavrent.lab6.client.commands.Command;
+import ru.lavrent.lab6.client.exceptions.RequestFailedException;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,6 +45,8 @@ public class CommandManager {
       try {
         command.execute(commandArgs);
         history.add(commandName);
+      } catch (RequestFailedException e) {
+        System.out.println("server refused the request: " + e.getMessage());
       } catch (IOException e) {
         System.out.println("error while sending request: " + e.getMessage());
       }

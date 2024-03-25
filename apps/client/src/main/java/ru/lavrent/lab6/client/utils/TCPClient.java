@@ -1,6 +1,7 @@
 package ru.lavrent.lab6.client.utils;
 
 import org.apache.commons.lang3.SerializationUtils;
+import ru.lavrent.lab6.client.exceptions.RequestFailedException;
 import ru.lavrent.lab6.common.network.requests.Request;
 import ru.lavrent.lab6.common.network.responses.ErrorResponse;
 import ru.lavrent.lab6.common.network.responses.OkResponse;
@@ -63,7 +64,12 @@ public class TCPClient {
     System.out.println("\n[incoming %d byte response]".formatted(responseSize));
     byte[] responseBytes = this.readResponse(responseSize);
 
-    return SerializationUtils.deserialize(responseBytes);
+    Response response = SerializationUtils.deserialize(responseBytes);
+    if (response instanceof ErrorResponse) {
+      ErrorResponse r = (ErrorResponse) response;
+      throw new RequestFailedException(r.message);
+    }
+    return response;
   }
 
   private void writeInt(int x) throws IOException {

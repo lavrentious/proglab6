@@ -2,7 +2,9 @@ package ru.lavrent.lab6.server;
 
 import org.apache.commons.lang3.SerializationUtils;
 import ru.lavrent.lab6.common.network.requests.Request;
+import ru.lavrent.lab6.common.network.responses.ErrorResponse;
 import ru.lavrent.lab6.common.network.responses.Response;
+import ru.lavrent.lab6.server.exceptions.BadRequest;
 import ru.lavrent.lab6.server.managers.RequestManager;
 
 import java.io.ByteArrayOutputStream;
@@ -62,13 +64,19 @@ public class TCPServer {
           "Received %s from %s (%d bytes)".formatted(request.getName(), client.getRemoteAddress(), requestSize));
 
       // send response
-      Response response = this.requestManager.handleRequest(request);
-      byte[] responseBytes = SerializationUtils.serialize(response);
-
-      this.writeInt(responseBytes.length);
-      this.client.write(ByteBuffer.wrap(responseBytes));
-      buffer.clear();
+      try {
+        Response response = this.requestManager.handleRequest(request);
+        this.sendResponse(response);
+      } catch (BadRequest e) {
+        this.sendResponse(new ErrorResponse(e.getMessage()));
+      }
     }
+  }
+
+  private void sendResponse(Response response) throws IOException {
+    byte[] responseBytes = SerializationUtils.serialize(response);
+    this.writeInt(responseBytes.length);
+    this.client.write(ByteBuffer.wrap(responseBytes));
   }
 
   private void writeInt(int x) throws IOException {

@@ -4,6 +4,7 @@ import ru.lavrent.lab6.common.network.requests.BlankRequest;
 import ru.lavrent.lab6.common.network.requests.Request;
 import ru.lavrent.lab6.common.network.responses.Response;
 import ru.lavrent.lab6.server.commands.Command;
+import ru.lavrent.lab6.server.exceptions.BadRequest;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -19,10 +20,10 @@ public class RequestManager {
     commands = new HashMap<>();
   }
 
-  public Response handleRequest(Request request) throws IOException {
+  public Response handleRequest(Request request) throws IOException, BadRequest {
     Command command = commands.get(request.getName());
     if (command == null) {
-      throw new RuntimeException("unknown command: " + request.getName());
+      throw new BadRequest("unknown command: " + request.getName());
     }
     return command.execute(request);
   }
