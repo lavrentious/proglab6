@@ -8,7 +8,6 @@ import ru.lavrent.lab6.server.exceptions.BadRequest;
 import ru.lavrent.lab6.server.managers.RequestManager;
 import ru.lavrent.lab6.server.managers.RuntimeManager;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -20,7 +19,7 @@ import java.util.Iterator;
 import java.util.Set;
 
 public class TCPServer {
-  private static final int RESPONSE_BUFFER_SIZE = 1024;
+  private static final int RESPONSE_BUFFER_SIZE = 64;
   private final RequestManager requestManager;
   private final Selector selector;
 
@@ -47,6 +46,9 @@ public class TCPServer {
         } else if (key.isReadable()) {
           handleReadable(key);
         }
+        if (key.isWritable()) {
+          handleWritable(key);
+        }
         keyIterator.remove();
       }
     }
@@ -68,9 +70,16 @@ public class TCPServer {
     RuntimeManager.logger.info("%s connected".formatted(client.getRemoteAddress()));
   }
 
+  private void handleWritable(SelectionKey key) throws IOException {
+    SocketChannel client = (SocketChannel) key.channel();
+    RuntimeManager.logger.fine("%s is writable ".formatted(client.toString()));
+  }
+
   private void handleReadable(SelectionKey key) throws IOException {
     SocketChannel client = (SocketChannel) key.channel();
+    RuntimeManager.logger.fine("%s is readable".formatted(client.toString()));
     int requestSize = this.readInt(client);
+    RuntimeManager.logger.fine("incoming %d bytes".formatted(requestSize));
     if (requestSize == -1) {
       disconnect(client);
       return;
@@ -78,7 +87,7 @@ public class TCPServer {
     byte[] requestBytes = this.readRequest(client, requestSize);
     Request request = SerializationUtils.deserialize(requestBytes);
     RuntimeManager.logger.info(
-        "received %s from %s (%d bytes)".formatted(request.getName(), client.getRemoteAddress(), requestSize));
+        "received %s request from %s (%d bytes)".formatted(request.getName(), client.getRemoteAddress(), requestSize));
 
     try {
       Response response = requestManager.handleRequest(request);
@@ -106,6 +115,7 @@ public class TCPServer {
   private int readInt(SocketChannel client) throws IOException {
     ByteBuffer data = ByteBuffer.allocate(Integer.BYTES);
     int size = client.read(data);
+    RuntimeManager.logger.fine("header (should be 4 bytes): %d bytes".formatted(size));
     if (size == -1) {
       return -1;
     }
@@ -114,14 +124,18 @@ public class TCPServer {
 
   private byte[] readRequest(SocketChannel client, int responseSize) throws IOException {
     ByteBuffer buffer = ByteBuffer.allocate(RESPONSE_BUFFER_SIZE);
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    byte[] ans = new byte[responseSize];
     int totalRead = 0;
     while (totalRead < responseSize) {
-      totalRead += client.read(buffer);
+      int curRead = client.read(buffer);
+      if (curRead == 0) {
+        throw new IOException("received 0 bytes (%d total)".formatted(responseSize));
+      }
+      totalRead += curRead;
+      RuntimeManager.logger.fine("read %d bytes (%d/%d)".formatted(curRead, totalRead, responseSize));
       buffer.flip();
-      baos.write(buffer.array());
+      System.arraycopy(buffer.array(), 0, ans, totalRead - curRead, curRead);
     }
-    buffer.clear();
-    return baos.toByteArray();
+    return ans;
   }
 }

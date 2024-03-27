@@ -24,6 +24,7 @@ public class Add extends Command {
   public void execute(String[] args) throws IOException {
     try {
       DryLabWork labWork = reader.runForm(new LabWorkForm());
+      System.out.println("formed lw: " + labWork.toString());
       AddResponse res = (AddResponse) tcpClient.send(new AddRequest(labWork));
       System.out.println("labwork created: " + res.newId);
     } catch (ValidationException e) {

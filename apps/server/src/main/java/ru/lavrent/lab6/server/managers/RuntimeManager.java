@@ -14,10 +14,12 @@ import ru.lavrent.lab6.server.utils.ServerEnvConfig;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.AccessDeniedException;
+import java.util.logging.ConsoleHandler;
 import java.util.logging.FileHandler;
+import java.util.logging.Formatter;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
 
 /**
  * RuntimeManager
@@ -52,15 +54,34 @@ public class RuntimeManager {
   }
 
   private void setupLogger() {
-    logger = Logger.getLogger("ru.lavrent.lab6.server");
-    SimpleFormatter formatter = new SimpleFormatter();
+    // remove root console logger
+    Logger rootLogger = Logger.getLogger("");
+    for (java.util.logging.Handler handler : rootLogger.getHandlers()) {
+      if (handler instanceof ConsoleHandler) {
+        rootLogger.removeHandler(handler);
+      }
+    }
 
-    logger.setLevel(Level.INFO);
+    // set up custom logger
+    logger = Logger.getLogger("ru.lavrent.lab6.server");
+    Formatter formatter = new Formatter() {
+      @Override
+      public String format(final LogRecord record) {
+        return "[%s] %s\n".formatted(record.getLevel(), record.getMessage());
+      }
+    };
+
+    logger.setLevel(Level.ALL);
+    ConsoleHandler ch = new ConsoleHandler();
+    ch.setFormatter(formatter);
+    ch.setLevel(Level.ALL);
+    logger.addHandler(ch);
     if (config.getLogPath() != null) {
       logger.config("adding file log handler " + config.getLogPath());
       try {
         FileHandler fh = new FileHandler(config.getLogPath());
         fh.setFormatter(formatter);
+        fh.setLevel(Level.ALL);
         logger.addHandler(fh);
       } catch (IOException e) {
         logger.config("could not register file log handler in %s (%s)".formatted(config.getLogPath(), e.getMessage()));

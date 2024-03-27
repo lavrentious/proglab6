@@ -49,6 +49,7 @@ public class CommandManager {
         System.out.println("server refused the request: " + e.getMessage());
       } catch (IOException e) {
         System.out.println("error while sending request: " + e.getMessage());
+        e.printStackTrace();
       }
     } else {
       System.err.println("unknown command \"%s\" ".formatted(commandName));

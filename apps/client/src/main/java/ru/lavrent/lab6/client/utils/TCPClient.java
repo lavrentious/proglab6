@@ -72,7 +72,9 @@ public class TCPClient {
     try {
       byte[] bytes = SerializationUtils.serialize(request);
       writeInt(bytes.length);
+      System.err.println("wrote %d byte header".formatted(bytes.length));
       out.write(bytes);
+      System.err.println("wrote bytes".formatted(bytes.length));
       out.flush();
 
       // read response size
