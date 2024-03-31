@@ -15,16 +15,19 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 
 public class TCPServer {
-  private static final int RESPONSE_BUFFER_SIZE = 64;
   private final RequestManager requestManager;
   private final Selector selector;
+  private Map<SocketChannel, Response> channelDataMap;
 
   public TCPServer(int port, RequestManager requestManager) throws IOException {
     this.requestManager = requestManager;
+    this.channelDataMap = new HashMap<>();
     ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
     serverSocketChannel.bind(new InetSocketAddress(port));
     serverSocketChannel.configureBlocking(false);
@@ -45,8 +48,7 @@ public class TCPServer {
           handleConnect(key);
         } else if (key.isReadable()) {
           handleReadable(key);
-        }
-        if (key.isWritable()) {
+        } else if (key.isWritable()) {
           handleWritable(key);
         }
         keyIterator.remove();
@@ -66,13 +68,19 @@ public class TCPServer {
     ServerSocketChannel serverSocketChannel = (ServerSocketChannel) key.channel();
     SocketChannel client = serverSocketChannel.accept();
     client.configureBlocking(false);
-    client.register(selector, SelectionKey.OP_READ);
+    client.register(selector, SelectionKey.OP_READ + SelectionKey.OP_WRITE);
     RuntimeManager.logger.info("%s connected".formatted(client.getRemoteAddress()));
   }
 
   private void handleWritable(SelectionKey key) throws IOException {
     SocketChannel client = (SocketChannel) key.channel();
-    RuntimeManager.logger.fine("%s is writable ".formatted(client.toString()));
+    Response response = channelDataMap.get(client);
+    if (response == null) {
+      return;
+    }
+    RuntimeManager.logger.fine("writing %s to %s".formatted(response.getName(), client.toString()));
+    sendResponse(client, response);
+    channelDataMap.remove(client);
   }
 
   private void handleReadable(SelectionKey key) throws IOException {
@@ -91,9 +99,11 @@ public class TCPServer {
 
     try {
       Response response = requestManager.handleRequest(request);
-      sendResponse(client, response);
+      // sendResponse(client, response);
+      this.channelDataMap.put(client, response);
     } catch (BadRequest e) {
-      sendResponse(client, new ErrorResponse(e.getMessage()));
+      // sendResponse(client, new ErrorResponse(e.getMessage()));
+      this.channelDataMap.put(client, new ErrorResponse(e.getMessage()));
     } catch (IOException e) {
       disconnect(client);
     }
@@ -123,19 +133,19 @@ public class TCPServer {
   }
 
   private byte[] readRequest(SocketChannel client, int responseSize) throws IOException {
-    ByteBuffer buffer = ByteBuffer.allocate(RESPONSE_BUFFER_SIZE);
-    byte[] ans = new byte[responseSize];
-    int totalRead = 0;
-    while (totalRead < responseSize) {
-      int curRead = client.read(buffer);
+    ByteBuffer buffer = ByteBuffer.allocate(responseSize);
+    int curRead = 0;
+    while (curRead < responseSize) {
+      curRead = client.read(buffer);
       if (curRead == 0) {
-        throw new IOException("received 0 bytes (%d total)".formatted(responseSize));
+        continue;
       }
-      totalRead += curRead;
-      RuntimeManager.logger.fine("read %d bytes (%d/%d)".formatted(curRead, totalRead, responseSize));
-      buffer.flip();
-      System.arraycopy(buffer.array(), 0, ans, totalRead - curRead, curRead);
+      if (curRead == -1) {
+        break;
+      }
+      RuntimeManager.logger.fine("read %d bytes (%d remaining)".formatted(curRead, responseSize));
+      responseSize -= curRead;
     }
-    return ans;
+    return buffer.array();
   }
 }
