@@ -25,6 +25,7 @@ public class TCPClient {
   private int port;
   final private int MAX_RETRIES = 5;
   private int retries;
+  private final ByteBuffer intBuffer;
 
   public TCPClient(String host, int port) throws UnknownHostException, IOException {
     try {
@@ -32,6 +33,7 @@ public class TCPClient {
       Class.forName(ErrorResponse.class.getName()); // load class
     } catch (ClassNotFoundException e) {
     }
+    this.intBuffer = ByteBuffer.allocate(Integer.BYTES);
     this.host = host;
     this.port = port;
     connect();
@@ -98,16 +100,16 @@ public class TCPClient {
   }
 
   private void writeInt(int x) throws IOException {
-    ByteBuffer responseSizeBuffer = ByteBuffer.allocate(Integer.BYTES);
-    responseSizeBuffer.putInt(x);
-    responseSizeBuffer.flip();
-    this.out.write(responseSizeBuffer.array());
+    intBuffer.clear();
+    intBuffer.putInt(x);
+    intBuffer.flip();
+    this.out.write(intBuffer.array());
   }
 
   private int readInt() throws IOException {
-    byte[] responseSizeBytes = new byte[Integer.BYTES];
-    in.read(responseSizeBytes);
-    return ByteBuffer.wrap(responseSizeBytes).getInt();
+    intBuffer.clear();
+    in.read(intBuffer.array());
+    return intBuffer.getInt();
   }
 
   private byte[] readResponse(int responseSize) throws IOException {

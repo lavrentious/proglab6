@@ -24,10 +24,12 @@ public class TCPServer {
   private final RequestManager requestManager;
   private final Selector selector;
   private Map<SocketChannel, Response> channelDataMap;
+  private final ByteBuffer intBuffer;
 
   public TCPServer(int port, RequestManager requestManager) throws IOException {
     this.requestManager = requestManager;
     this.channelDataMap = new HashMap<>();
+    this.intBuffer = ByteBuffer.allocate(Integer.BYTES);
     ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
     serverSocketChannel.bind(new InetSocketAddress(port));
     serverSocketChannel.configureBlocking(false);
@@ -110,10 +112,10 @@ public class TCPServer {
   }
 
   private void writeInt(SocketChannel client, int x) throws IOException {
-    ByteBuffer responseSizeBuffer = ByteBuffer.allocate(Integer.BYTES);
-    responseSizeBuffer.putInt(x);
-    responseSizeBuffer.flip();
-    client.write(responseSizeBuffer);
+    intBuffer.clear();
+    intBuffer.putInt(x);
+    intBuffer.flip();
+    client.write(intBuffer);
   }
 
   private void sendResponse(SocketChannel client, Response response) throws IOException {
@@ -123,13 +125,13 @@ public class TCPServer {
   }
 
   private int readInt(SocketChannel client) throws IOException {
-    ByteBuffer data = ByteBuffer.allocate(Integer.BYTES);
-    int size = client.read(data);
+    intBuffer.clear();
+    int size = client.read(intBuffer);
     RuntimeManager.logger.fine("header (should be 4 bytes): %d bytes".formatted(size));
     if (size == -1) {
       return -1;
     }
-    return data.flip().getInt();
+    return intBuffer.flip().getInt();
   }
 
   private byte[] readRequest(SocketChannel client, int responseSize) throws IOException {
